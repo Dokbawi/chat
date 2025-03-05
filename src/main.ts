@@ -6,14 +6,6 @@ import { join } from 'path';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  app.connectMicroservice<MicroserviceOptions>({
-    transport: Transport.GRPC,
-    options: {
-      package: 'chat',
-      protoPath: join(__dirname, 'proto/chat.proto'),
-      url: '0.0.0.0:50051', 
-    },
-  });
 
   await app.startAllMicroservices();
   await app.listen(3000);
