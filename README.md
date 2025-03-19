@@ -1,73 +1,102 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="200" alt="Nest Logo" /></a>
-</p>
+# Chat Backend Service
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+## 개요
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://coveralls.io/github/nestjs/nest?branch=master" target="_blank"><img src="https://coveralls.io/repos/github/nestjs/nest/badge.svg?branch=master#9" alt="Coverage" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+이 프로젝트는 NestJS 프레임워크와 RabbitMQ를 활용한 실시간 채팅 백엔드 서비스입니다. WebSocket을 통해 클라이언트와 실시간 통신을 하며, RabbitMQ를 메시지 브로커로 활용하여 1:1 개인 채팅과 다중 사용자 그룹 채팅을 모두 지원합니다. MongoDB를 데이터베이스로 사용하여 메시지와 사용자 정보를 저장하고 메세지 내역은 저장하지 않습니다.
 
-## Description
+## 주요 기능
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+- WebSocket 기반 실시간 1:1, 1:n 개인 및 단체 채팅
+- 그룹 채팅방 생성 및 관리
+- 메시지 읽음 확인 기능
+- RabbitMQ를 활용한 메시지 큐 아키텍처
+- MongoDB에 채팅방 정보 영구 저장
+- 확장 가능한 마이크로서비스 구조
 
-## Installation
+## 기술 스택
 
-```bash
-$ npm install
+- **Backend Framework**: NestJS
+- **실시간 통신**: Socket.IO (WebSocket)
+- **Message Broker**: RabbitMQ
+- **Database**: MongoDB
+- **Authentication**: WsAuthGuard를 통한 WebSocket 인증
+
+## 아키텍처
+
+1. **WebSocket Gateway**: 클라이언트와의 실시간 양방향 통신을 관리합니다.
+2. **NestJS 백엔드 서버**: 비즈니스 로직 및 데이터 관리를 처리합니다.
+3. **RabbitMQ 메시지 브로커**: 채팅 메시지와 읽음 확인을 큐에 저장하고 배포합니다.
+4. **메시지 소비자 서비스**: 큐에서 메시지를 가져와 적절한 수신자에게 전달합니다.
+5. **MongoDB 데이터베이스**: 사용자, 채팅방, 메시지 데이터를 영구 저장합니다.
+
+```
+클라이언트 <-> WebSocket Gateway <-> NestJS 서버 <-> RabbitMQ <-> 메시지 소비자 -> 수신자
+                                        |
+                                        v
+                                    MongoDB
 ```
 
-## Running the app
+## 주요 컴포넌트
 
-```bash
-# development
-$ npm run start
+### WebSocket Gateway
 
-# watch mode
-$ npm run start:dev
+`ChatGateway`
 
-# production mode
-$ npm run start:prod
-```
+- **연결 처리**: 클라이언트 연결 시 사용자 정보를 확인하고 메시지 핸들러를 설정합니다.
+- **메시지 전송**: `sendMessage` 이벤트를 통해 채팅 메시지를 RabbitMQ로 전송합니다.
+- **읽음 확인**: `markAsRead` 이벤트를 통해 메시지 읽음 상태를 업데이트합니다.
+- **채팅방 생성**: `createRoom` 이벤트로 1:1 또는 그룹 채팅방을 생성합니다.
+- **연결 해제**: 클라이언트 연결 종료 시 자원을 정리하고 사용자 상태를 업데이트합니다.
 
-## Test
+### RabbitMQ
 
-```bash
-# unit tests
-$ npm run test
+`RabbitMQService`
 
-# e2e tests
-$ npm run test:e2e
+- 채팅 메시지 큐 관리
+- 읽음 상태 큐 관리
+- 메시지 소비자 설정 및 취소
+- 사용자별 메시지 라우팅
 
-# test coverage
-$ npm run test:cov
-```
+### MongoDB
 
-## Support
+`MongoDB`
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+- **Users**: 사용자 정보 및 연결 상태
+- **Rooms**: 채팅방 정보 및 참여자
+- **Messages**: 채팅 메시지 및 읽음 상태
 
-## Stay in touch
+## 설치 방법
 
-- Author - [Kamil Myśliwiec](https://kamilmysliwiec.com)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+### 설치 단계
 
-## License
+1. 저장소 클론
 
-Nest is [MIT licensed](LICENSE).
+   ```bash
+   git clone https://github.com/Dokbawi/chat.git
+   cd chat
+   ```
+
+2. 의존성 설치
+
+   ```bash
+   npm install
+   ```
+
+3. 환경 변수 설정
+
+   ```bash
+   .env
+   ```
+
+4. 주요 환경 변수
+
+   ```
+   # .env
+   RABBITMQ_URL=amqp://username:password@localhost:5672  # RabbitMQ 연결 정보
+   MONGODB_URI=mongodb://localhost:27017/chatdb  # MongoDB 연결 정보
+   ```
+
+5. 서버 실행
+   ```bash
+   npm run start:dev
+   ```
